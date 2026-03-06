@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Can You Match With π?</title>
+  <title>Can You Match π?</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 
@@ -105,6 +105,20 @@
       outline:none;
     }
 
+    .checkrow{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-top:6px;
+      color:#dbe6ff;
+      font-weight:700;
+    }
+
+    .checkrow input{
+      width:auto;
+      transform:scale(1.2);
+    }
+
     button{
       padding:12px 22px;
       border-radius:14px;
@@ -123,11 +137,23 @@
       opacity:0.96;
     }
 
+    button:disabled{
+      opacity:0.7;
+      cursor:not-allowed;
+      transform:none;
+    }
+
     .result{
       font-size:25px;
       font-weight:800;
       margin-top:6px;
       line-height:1.4;
+    }
+
+    .status{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:14px;
     }
 
     .green{ color:var(--green); }
@@ -145,7 +171,7 @@
     .mono{
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       word-break: break-all;
-      line-height: 1.7;
+      line-height:1.7;
       font-size:16px;
       background:rgba(255,255,255,0.04);
       border:1px solid rgba(255,255,255,0.08);
@@ -194,7 +220,7 @@
 <body>
 
 <div class="container">
-  <h1>Can You Match With π?</h1>
+  <h1>Can You Match π?</h1>
   <div class="subtitle">
     Choose an integer \(N_{\max}\) and a real \(\lambda\), then compute the truncated series and see how many digits match the true value of \(\pi\).
   </div>
@@ -223,7 +249,16 @@
       <input id="lambda" type="number" min="0.00001" max="200" step="0.00001" value="10.00000">
     </div>
 
-    <button onclick="compute()">Compute</button>
+    <div class="checkrow">
+      <input id="showGraph" type="checkbox" checked>
+      <label for="showGraph" style="margin:0;">Show accuracy graph</label>
+    </div>
+
+    <div style="margin-top:18px;">
+      <button id="computeBtn" onclick="compute()">Compute</button>
+    </div>
+
+    <div class="status" id="status">Ready.</div>
   </div>
 
   <div class="card">
@@ -237,7 +272,7 @@
     <div class="mono" id="approx"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="graphCard">
     <div class="card-title">Accuracy graph</div>
     <div class="smalltext">
       The graph plots
@@ -296,21 +331,13 @@
   let chartInstance = null;
 
   function setPrecisionFor(Nmax){
-    const prec = Math.max(320, 320 + 8 * Nmax);
+    const prec = Math.max(180, 180 + 2 * Nmax);
     Decimal.set({
       precision: prec,
       rounding: Decimal.ROUND_HALF_UP,
       toExpNeg: -1000,
       toExpPos: 1000
     });
-  }
-
-  function factorial(n){
-    let f = new Decimal(1);
-    for(let i = 2; i <= n; i++){
-      f = f.mul(i);
-    }
-    return f;
   }
 
   function pochhammer(a, k){
@@ -321,7 +348,7 @@
     return p;
   }
 
-  function term(n, lambda){
+  function term(n, lambda, fact){
     const dn = new Decimal(n);
 
     const prefactor = new Decimal(1).div(lambda.plus(dn))
@@ -333,7 +360,7 @@
 
     const P = pochhammer(a, n - 1);
 
-    return prefactor.mul(P).div(factorial(n));
+    return prefactor.mul(P).div(fact);
   }
 
   function countMatchedDigits(approxStr, trueStr){
@@ -367,25 +394,10 @@
 
   function boomAnimation(){
     confetti({
-      particleCount: 180,
-      spread: 120,
-      origin: { y: 0.6 }
+      particleCount: 90,
+      spread: 100,
+      origin: { y: 0.65 }
     });
-
-    setTimeout(() => {
-      confetti({
-        particleCount: 120,
-        angle: 60,
-        spread: 90,
-        origin: { x: 0, y: 0.7 }
-      });
-      confetti({
-        particleCount: 120,
-        angle: 120,
-        spread: 90,
-        origin: { x: 1, y: 0.7 }
-      });
-    }, 180);
   }
 
   function drawGraph(Ns, vals){
@@ -423,6 +435,7 @@
       },
       options: {
         responsive: true,
+        animation: false,
         plugins: {
           legend: {
             labels: { color: "white" }
@@ -445,6 +458,11 @@
   }
 
   function compute(){
+    const computeBtn = document.getElementById("computeBtn");
+    const status = document.getElementById("status");
+    const showGraph = document.getElementById("showGraph").checked;
+    const graphCard = document.getElementById("graphCard");
+
     const Nmax = parseInt(document.getElementById("nmax").value, 10);
     const lambdaInput = document.getElementById("lambda").value;
 
@@ -459,34 +477,61 @@
       return;
     }
 
-    setPrecisionFor(Nmax);
+    computeBtn.disabled = true;
+    computeBtn.innerText = "Computing...";
+    status.innerText = "Please wait...";
+    document.getElementById("message").innerText = "Computing...";
 
-    const lambda = new Decimal(lambdaInput);
+    setTimeout(() => {
+      try {
+        setPrecisionFor(Nmax);
 
-    let fp = new Decimal(4);
-    const partial = [];
-    const Ns = [];
+        const lambda = new Decimal(lambdaInput);
+        let fp = new Decimal(4);
+        let fact = new Decimal(1);
 
-    for(let n = 1; n <= Nmax; n++){
-      fp = fp.plus(term(n, lambda));
-      partial.push(fp);
-      Ns.push(n);
-    }
+        const partial = [];
+        const Ns = [];
 
-    const approx = fp.toFixed(100);
-    const matched = countMatchedDigits(approx, TRUE_PI);
+        for(let n = 1; n <= Nmax; n++){
+          fact = fact.mul(n);
+          fp = fp.plus(term(n, lambda, fact));
 
-    document.getElementById("message").innerHTML =
-      "Yeah!! You matched <span class='green'>" + matched + "</span> digits after decimal places 🤩🥳";
+          if(showGraph){
+            if(n <= 40 || n % 2 === 0){
+              partial.push(fp);
+              Ns.push(n);
+            }
+          }
+        }
 
-    document.getElementById("approx").innerHTML = buildColoredApprox(approx, matched);
+        const approx = fp.toFixed(100);
+        const matched = countMatchedDigits(approx, TRUE_PI);
 
-    drawGraph(Ns, partial);
-    boomAnimation();
+        document.getElementById("message").innerHTML =
+          "Yeah!! You matched <span class='green'>" + matched + "</span> digits after decimal places 🤩🥳";
+
+        document.getElementById("approx").innerHTML = buildColoredApprox(approx, matched);
+
+        if(showGraph){
+          graphCard.style.display = "block";
+          drawGraph(Ns, partial);
+        } else {
+          graphCard.style.display = "none";
+        }
+
+        boomAnimation();
+        status.innerText = "Done.";
+      } catch (e) {
+        document.getElementById("message").innerText = "Something went wrong.";
+        status.innerText = "Error: " + e.message;
+      } finally {
+        computeBtn.disabled = false;
+        computeBtn.innerText = "Compute";
+      }
+    }, 20);
   }
 </script>
 
 </body>
-
 </html>
-
