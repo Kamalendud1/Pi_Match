@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Can You Match π?</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.4.3/decimal.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <style>
+    :root{
+      --bg:#0c1426;
+      --card:rgba(255,255,255,0.07);
+      --card-border:rgba(255,255,255,0.10);
+      --text:#ffffff;
+      --muted:rgba(255,255,255,0.80);
+      --green:#22c55e;
+      --red:#ff4d4f;
+      --dim:rgba(255,255,255,0.72);
+      --accent1:#00d2ff;
+      --accent2:#7c5cff;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      font-family:Inter, sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(circle at 20% 0%, rgba(43,60,255,0.25), transparent 40%),
+        radial-gradient(circle at 80% 10%, rgba(176,60,255,0.25), transparent 40%),
+        radial-gradient(circle at 50% 100%, rgba(0,210,255,0.12), transparent 35%),
+        var(--bg);
+    }
+
+    .container{
+      max-width:1100px;
+      margin:auto;
+      padding:26px 20px 40px;
+    }
+
+    h1{
+      font-size:48px;
+      margin:0 0 8px 0;
+      font-weight:800;
+      letter-spacing:-0.02em;
+    }
+
+    .subtitle{
+      color:var(--muted);
+      line-height:1.6;
+      margin-bottom:18px;
+      max-width:850px;
+    }
+
+    .card{
+      background:var(--card);
+      border:1px solid var(--card-border);
+      border-radius:20px;
+      padding:22px;
+      margin-top:20px;
+      box-shadow:0 10px 28px rgba(0,0,0,0.22);
+      backdrop-filter:blur(8px);
+    }
+
+    .card-title{
+      font-size:22px;
+      font-weight:800;
+      margin-bottom:10px;
+    }
+
+    .row{
+      margin-bottom:18px;
+    }
+
+    label{
+      display:block;
+      font-weight:700;
+      margin-bottom:8px;
+      color:#dbe6ff;
+    }
+
+    input{
+      padding:12px 14px;
+      border-radius:14px;
+      border:none;
+      width:220px;
+      font-size:16px;
+      font-family:Inter, sans-serif;
+      background:rgba(255,255,255,0.96);
+      color:#111827;
+      outline:none;
+    }
+
+    button{
+      padding:12px 22px;
+      border-radius:14px;
+      border:none;
+      font-weight:800;
+      font-size:15px;
+      cursor:pointer;
+      color:#08111d;
+      background:linear-gradient(90deg, var(--accent1), var(--accent2));
+      box-shadow:0 8px 20px rgba(124,92,255,0.28);
+      transition:transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    button:hover{
+      transform:translateY(-1px);
+      opacity:0.96;
+    }
+
+    .result{
+      font-size:25px;
+      font-weight:800;
+      margin-top:6px;
+      line-height:1.4;
+    }
+
+    .green{ color:var(--green); }
+    .red{ color:var(--red); }
+    .dim{ color:var(--dim); }
+
+    .label{
+      font-weight:800;
+      font-size:18px;
+      margin-top:18px;
+      margin-bottom:8px;
+      color:#dce6ff;
+    }
+
+    .mono{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+      line-height: 1.7;
+      font-size:16px;
+      background:rgba(255,255,255,0.04);
+      border:1px solid rgba(255,255,255,0.08);
+      border-radius:14px;
+      padding:14px;
+    }
+
+    .smalltext{
+      color:var(--muted);
+      line-height:1.75;
+      font-size:15px;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:20px;
+    }
+
+    canvas{
+      margin-top:18px;
+      background:rgba(255,255,255,0.04);
+      border-radius:14px;
+      padding:10px;
+      border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .formula-box{
+      overflow-x:auto;
+      line-height:1.8;
+    }
+
+    @media (max-width: 900px){
+      .grid{
+        grid-template-columns:1fr;
+      }
+      h1{
+        font-size:38px;
+      }
+      input{
+        width:100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Can You Match π?</h1>
+  <div class="subtitle">
+    Choose an integer \(N_{\max}\) and a real \(\lambda\), then compute the truncated series and see how many digits match the true value of \(\pi\).
+  </div>
+
+  <div class="card">
+    <div class="card-title">Formula</div>
+    <div class="formula-box">
+      $$
+      f_{\pi} = 4+\sum_{n=0}^{\infty} \frac{1}{n!}
+      \left(\frac{1}{\lambda +n}-\frac{4}{2 n+1}\right)
+      \left(\frac{\left(2n+1\right)^{2}}{4 (n+\lambda )}-n\right)_{n-1}
+      $$
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Inputs</div>
+
+    <div class="row">
+      <label for="nmax">\(N_{\max}\) (integer, 1 to 150)</label>
+      <input id="nmax" type="number" min="1" max="150" step="1" value="40">
+    </div>
+
+    <div class="row">
+      <label for="lambda">\(\lambda\) (0.00001 to 200, up to 5 decimal places)</label>
+      <input id="lambda" type="number" min="0.00001" max="200" step="0.00001" value="10.00000">
+    </div>
+
+    <button onclick="compute()">Compute</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Result</div>
+    <div class="result" id="message">Waiting for input...</div>
+
+    <div class="label">Exact π (up to 100 digits)</div>
+    <div class="mono" id="truepi"></div>
+
+    <div class="label">Approximate π</div>
+    <div class="mono" id="approx"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Accuracy graph</div>
+    <div class="smalltext">
+      The graph plots
+      \[
+      -\log_{10}\bigl(|f_{\pi}(N,\lambda)-\pi|\bigr)
+      \]
+      against \(N\). A larger value means a smaller error, so higher points correspond to better agreement with the exact value of \(\pi\).
+    </div>
+    <canvas id="graph"></canvas>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-title">Algorithm used for the calculation</div>
+      <div class="smalltext">
+        1. Fix the values of \(N_{\max}\) and \(\lambda\).<br><br>
+
+        2. For each integer \(n=1,2,\dots,N_{\max}\), compute the term
+        \[
+        \frac{1}{n!}
+        \left(\frac{1}{\lambda+n}-\frac{4}{2n+1}\right)
+        \left(\frac{(2n+1)^2}{4(n+\lambda)}-n\right)_{n-1}.
+        \]
+        <br>
+
+        3. The rising Pochhammer symbol is evaluated as the finite product
+        \[
+        (a)_{n-1}=a(a+1)(a+2)\cdots(a+n-2),
+        \qquad (a)_0=1.
+        \]
+        <br>
+
+        4. Add all these terms and then add the leading \(4\). This gives the approximation \(f_{\pi}\).<br><br>
+
+        5. Write \(f_{\pi}\) to 100 decimal places and compare it with the stored exact value of \(\pi\), digit by digit after the decimal point, until the first mismatch appears.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">How the matching works</div>
+      <div class="smalltext">
+        The exact value of \(\pi\) is stored up to 100 decimal places. After computing \(f_{\pi}\), the website compares the decimal digits from left to right after the decimal point.<br><br>
+
+        The number of matching digits is the number of consecutive digits that agree before the first mismatch.<br><br>
+
+        In the displayed approximate value, all matched digits are shown in green and the first mismatched digit is shown in red. The remaining digits are shown in a lighter color.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TRUE_PI = "3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117068";
+  document.getElementById("truepi").innerText = TRUE_PI;
+
+  let chartInstance = null;
+
+  function setPrecisionFor(Nmax){
+    const prec = Math.max(320, 320 + 8 * Nmax);
+    Decimal.set({
+      precision: prec,
+      rounding: Decimal.ROUND_HALF_UP,
+      toExpNeg: -1000,
+      toExpPos: 1000
+    });
+  }
+
+  function factorial(n){
+    let f = new Decimal(1);
+    for(let i = 2; i <= n; i++){
+      f = f.mul(i);
+    }
+    return f;
+  }
+
+  function pochhammer(a, k){
+    let p = new Decimal(1);
+    for(let i = 0; i < k; i++){
+      p = p.mul(a.plus(i));
+    }
+    return p;
+  }
+
+  function term(n, lambda){
+    const dn = new Decimal(n);
+
+    const prefactor = new Decimal(1).div(lambda.plus(dn))
+      .minus(new Decimal(4).div(dn.mul(2).plus(1)));
+
+    const a = dn.mul(2).plus(1).pow(2)
+      .div(new Decimal(4).mul(lambda.plus(dn)))
+      .minus(dn);
+
+    const P = pochhammer(a, n - 1);
+
+    return prefactor.mul(P).div(factorial(n));
+  }
+
+  function countMatchedDigits(approxStr, trueStr){
+    let matched = 0;
+    for(let i = 0; i < 100; i++){
+      if(approxStr[2 + i] === trueStr[2 + i]){
+        matched++;
+      } else {
+        break;
+      }
+    }
+    return matched;
+  }
+
+  function buildColoredApprox(approxStr, matched){
+    let html = "3.";
+
+    for(let i = 0; i < matched; i++){
+      html += "<span class='green'>" + approxStr[2 + i] + "</span>";
+    }
+
+    if(matched < 100){
+      html += "<span class='red'>" + approxStr[2 + matched] + "</span>";
+      for(let i = matched + 1; i < 100; i++){
+        html += "<span class='dim'>" + approxStr[2 + i] + "</span>";
+      }
+    }
+
+    return html;
+  }
+
+  function boomAnimation(){
+    confetti({
+      particleCount: 180,
+      spread: 120,
+      origin: { y: 0.6 }
+    });
+
+    setTimeout(() => {
+      confetti({
+        particleCount: 120,
+        angle: 60,
+        spread: 90,
+        origin: { x: 0, y: 0.7 }
+      });
+      confetti({
+        particleCount: 120,
+        angle: 120,
+        spread: 90,
+        origin: { x: 1, y: 0.7 }
+      });
+    }, 180);
+  }
+
+  function drawGraph(Ns, vals){
+    const digits = [];
+
+    for(let i = 0; i < vals.length; i++){
+      const err = vals[i].minus(TRUE_PI).abs();
+      let d;
+
+      if(err.isZero()){
+        d = 120;
+      } else {
+        const errNum = err.toNumber();
+        d = -Math.log10(errNum);
+        if(!isFinite(d)) d = 120;
+      }
+      digits.push(d);
+    }
+
+    if(chartInstance){
+      chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(document.getElementById("graph"), {
+      type: "line",
+      data: {
+        labels: Ns,
+        datasets: [{
+          label: "Digits of accuracy",
+          data: digits,
+          borderWidth: 2,
+          tension: 0.18,
+          pointRadius: 2.5
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            labels: { color: "white" }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "N", color: "white" },
+            ticks: { color: "white" },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          },
+          y: {
+            title: { display: true, text: "-log10(|error|)", color: "white" },
+            ticks: { color: "white" },
+            grid: { color: "rgba(255,255,255,0.08)" }
+          }
+        }
+      }
+    });
+  }
+
+  function compute(){
+    const Nmax = parseInt(document.getElementById("nmax").value, 10);
+    const lambdaInput = document.getElementById("lambda").value;
+
+    if(!Number.isFinite(Nmax) || Nmax < 1 || Nmax > 150){
+      alert("Please enter an integer Nmax between 1 and 150.");
+      return;
+    }
+
+    const lambdaNum = Number(lambdaInput);
+    if(!Number.isFinite(lambdaNum) || lambdaNum <= 0 || lambdaNum > 200){
+      alert("Please enter λ between 0.00001 and 200.");
+      return;
+    }
+
+    setPrecisionFor(Nmax);
+
+    const lambda = new Decimal(lambdaInput);
+
+    let fp = new Decimal(4);
+    const partial = [];
+    const Ns = [];
+
+    for(let n = 1; n <= Nmax; n++){
+      fp = fp.plus(term(n, lambda));
+      partial.push(fp);
+      Ns.push(n);
+    }
+
+    const approx = fp.toFixed(100);
+    const matched = countMatchedDigits(approx, TRUE_PI);
+
+    document.getElementById("message").innerHTML =
+      "Yeah!! You matched <span class='green'>" + matched + "</span> digits after decimal places 🤩🥳";
+
+    document.getElementById("approx").innerHTML = buildColoredApprox(approx, matched);
+
+    drawGraph(Ns, partial);
+    boomAnimation();
+  }
+</script>
+
+</body>
+</html>
