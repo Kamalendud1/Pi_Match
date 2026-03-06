@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -508,8 +508,16 @@
         const approx = fp.toFixed(100);
         const matched = countMatchedDigits(approx, TRUE_PI);
 
-        document.getElementById("message").innerHTML =
-          "Yeah!! You matched <span class='green'>" + matched + "</span> digits after decimal places 🤩🥳";
+        if(matched <= 10){
+          document.getElementById("message").innerHTML =
+            "You matched <span class='green'>" + matched + "</span> decimal places. Try better 🫠";
+        } else if(matched <= 25){
+          document.getElementById("message").innerHTML =
+            "You matched <span class='green'>" + matched + "</span> decimal places. Good Job 👍🙂";
+        } else {
+          document.getElementById("message").innerHTML =
+            "Yeah!! You matched <span class='green'>" + matched + "</span> decimal places. Awesome 🥳🎉";
+        }
 
         document.getElementById("approx").innerHTML = buildColoredApprox(approx, matched);
 
